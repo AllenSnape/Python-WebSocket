@@ -50,7 +50,7 @@ class WebSocketClient(threading.Thread):
         self.__server = server
 
     def __log(self, msg):
-        print(str(self.__conn_info) + '@' + self.__name + f': {msg}')
+        print(str(self.__conn_info) + '@' + self.__name + ': ' + msg)
 
     def get_conn(self):
         return self.__conn
@@ -92,12 +92,19 @@ class WebSocketClient(threading.Thread):
 
                     received_message = self.decode(self.__buffered)
 
-                    self.__log(f'>>{received_message}')
+                    self.__log('>>' + received_message)
+
+                    # 触发回调
+                    try:
+                        for cb in self.__server.get_callbacks():
+                            cb(self.__conn, received_message)
+                    except BaseException as callback_e:
+                        self.__log('触发回调失败: ' + callback_e)
 
                     self.__buffered = b''
                     self.__message_length = 0
                 except BaseException as e:
-                    self.__log(f'处理消息错误: {e}')
+                    self.__log('处理消息错误: ' + e)
                     self.__buffered = b''
                     self.__message_length = 0
             # 进行握手操作
@@ -120,16 +127,16 @@ class WebSocketClient(threading.Thread):
 
                     self.__conn.send(bytes('HTTP/1.1 101 Web Socket Protocol Handshake\r\n', encoding='utf8'))
                     self.__conn.send(bytes('Upgrade: websocket\r\n', encoding='utf8'))
-                    self.__conn.send(bytes(f'Sec-WebSocket-Accept: {response_key}\r\n', encoding='utf8'))
+                    self.__conn.send(bytes('Sec-WebSocket-Accept: ' + response_key + '\r\n', encoding='utf8'))
                     self.__conn.send(bytes('Connection: Upgrade\r\n', encoding='utf8'))
                     self.__conn.send(bytes('\r\n', encoding='utf8'))
 
                     self.__handshaken = True
-                    self.__log(f'{sec_websocket_key} -> {response_key}: 握手完成')
+                    self.__log(sec_websocket_key + ' -> ' + response_key + ': 握手完成')
 
-                    self.send('连接成功!')
+                    # self.send('连接成功!')
                 except BaseException as e:
-                    self.__log(f'握手失败: {e}')
+                    self.__log('握手失败: ' + e)
                     self.__server.disconnect_client(self.__name)
                     return
 
@@ -146,13 +153,13 @@ class WebSocketClient(threading.Thread):
             msg += struct.pack('b', 127)
             msg += struct.pack('>q', msg_len)
         else:
-            self.__log(f'消息过长: {message}')
+            self.__log('消息过长: ' + message)
             return
 
         msg = msg + message.encode('utf-8')
 
         self.__conn.send(msg)
-        self.__log(f'<<{message}')
+        self.__log('<<' + message)
 
     @staticmethod
     def decode(msg):
@@ -211,6 +218,9 @@ class WebSocketServer:
     # 客户socket
     __clients = {}
 
+    # 消息回调列表
+    __callbacks = []
+
     def __init__(self, address, port):
         """ 初始化 """
         self.__address = address
@@ -240,8 +250,26 @@ class WebSocketServer:
             try:
                 self.__clients[name].get_conn().close()
             finally:
-                self.__log(f'[{name}]断开连接')
+                self.__log('[' + name + ']断开连接')
                 del self.__clients[name]
+
+    def add_callback(self, callback):
+        """
+        添加消息回调
+        :param callback: 消息回调, 回调方法(client, message)
+        """
+        self.__callbacks.append(callback)
+
+    def remove_callback(self, callback):
+        """
+        移除回调
+        :param callback: 被移除的回调
+        """
+        self.__callbacks.remove(callback)
+
+    def get_callbacks(self):
+        """ 获取回调列表 """
+        return self.__callbacks
 
     def run_forever(self):
         """ 开启服务 """
@@ -252,7 +280,7 @@ class WebSocketServer:
         while True:
             self.__log('等待连接')
             client_socket, address_info = self.__master.accept()
-            self.__log(f'{address_info}申请连接')
+            self.__log(address_info[0] + '申请连接')
 
             client = WebSocketClient(client_socket, address_info, str(i), self)
             client.start()
@@ -268,7 +296,7 @@ class WebSocketServer:
         self.__master.close()
 
     def __log(self, msg):
-        print(self.__address + ':' + str(self.__port) + f': {msg}')
+        print(self.__address + ':' + str(self.__port) + ': ' + msg)
 
 
 if __name__ == '__main__':
