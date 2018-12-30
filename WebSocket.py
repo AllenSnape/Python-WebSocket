@@ -60,6 +60,7 @@ class WebSocketClient(threading.Thread):
         return base64.b64encode(hashlib.sha1((key + self.__GUID).encode(encoding='utf-8')).digest()).decode('utf-8')
 
     def run(self):
+        """ 启动客户端 """
         while True:
             # 已握手
             if self.__handshaken:
@@ -141,6 +142,7 @@ class WebSocketClient(threading.Thread):
                     return
 
     def send(self, message):
+        """ 发送消息 """
         msg_len = len(message.encode())
         msg = b'\x81'
 
@@ -300,6 +302,8 @@ class WebSocketServer:
 
 
 if __name__ == '__main__':
-    # ws = WebSocket(socket.gethostname(), 8080)
     ws = WebSocketServer('localhost', 8080)
-    ws.run_forever()
+    try:
+        ws.run_forever()
+    finally:
+        ws.close()
