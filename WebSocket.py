@@ -261,6 +261,12 @@ class WebSocketServer:
 
             i += 1
 
+    def close(self):
+        """ 关闭服务 """
+        for _, c in self.__clients.items():
+            c.close()
+        self.__master.close()
+
     def __log(self, msg):
         print(self.__address + ':' + str(self.__port) + f': {msg}')
 
