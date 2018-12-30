@@ -19,7 +19,7 @@ A WebSocket server based on Python3
         t = threading.Thread(target=ws.run_forever)
         t.start()
         
-        # 10秒内初始化js的demo代码😏 / You got 10 seconds to run js demo
+        # 10秒内初始化js的demo代码😏 / You got 10 seconds to run js demo 😏
         time.sleep(10)
         # 给所有客户端发送消息 / Send message to all clients
         for name, client in ws.get_clients().items():
